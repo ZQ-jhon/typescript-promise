@@ -1,0 +1,19 @@
+{
+  "name": "typescript-promise",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "npx tsc && node my-promise.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZQ-jhon/typescript-promise.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ZQ-jhon/typescript-promise/issues"
+  },
+  "homepage": "https://github.com/ZQ-jhon/typescript-promise#readme"
+}
