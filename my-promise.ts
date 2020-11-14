@@ -4,18 +4,49 @@ const PENDING = 'PENDING'
 const FULFILLED = 'FULFILLED'
 const REJECTED = 'REJECTED'
 
-type VoidFunc = (arg?: unknown) => void; 
+const voidFunction = (arg?: unknown) => { };
+type VoidFunc = typeof voidFunction;
 
-class MyPromise {
+/**
+ * 思路：
+ * 1. executor 负责捕捉状态改变的 callback, 并调用内部状态机改变的函数
+ * 2. thenable 负责状态改变后的 callback 推入到内部的队列里
+ */
+export class MyPromise {
+  static all(promises: MyPromise[]) {
+    const results = [];
+    return new MyPromise((res, rej) => {
+      promises.forEach((promise, idx) => {
+        if (idx === promises.length - 1) {
+          return;
+        }
+        promise.then(r => {
+          res.call(this, r);
+          results.push(r);
+        }, err => rej(err));
+      });
+    });
+  }
+  static race(promises: MyPromise[]) {
+    return new MyPromise((res, rej) => {
+      promises.forEach(promise => promise.then(res, rej));
+    });
+  }
+  static resolve(onResolve: VoidFunc) {
+    return new MyPromise((onResolve, voidFunction) => onResolve());
+  }
+  static reject(onRejected: VoidFunc) {
+    return new MyPromise((voidFunction, onRejected) => onRejected());
+  }
   // state machine init state
   private _state = PENDING;
-  // 状态只能改变一次，所以 value 和 reason 只能存活一个，放在一个变量省事
-  private _valueOrReason: unknown;
+  private _value: unknown;
+  private _reason: unknown;
 
   // 每次异步调用 new Promise(res => setTimeout(res(), 1000)) 时，需要放入队列
   private _resolveCallbacks = [] as VoidFunc[];
   private _rejectedCallbacks = [] as VoidFunc[];
- 
+
 
   constructor(executor: (resolve: VoidFunc, reject: VoidFunc) => void) {
     if (typeof executor !== 'function') {
@@ -36,14 +67,14 @@ class MyPromise {
    * @method
    * 成功
    */
-  private _res (value: unknown) {
+  private _res(value: unknown) {
     setTimeout(() => {
       // if 判断确保状态只能改变一次
-    if (this._state === PENDING) {
-      this._state = FULFILLED;
-      this._valueOrReason = value;
-      this._resolveCallbacks.forEach(func => func(value));
-    }
+      if (this._state === PENDING) {
+        this._state = FULFILLED;
+        this._value = value;
+        this._resolveCallbacks.forEach(func => func(value));
+      }
     }, 0);
   }
   /**
@@ -52,58 +83,59 @@ class MyPromise {
   private _rej(reason: unknown) {
     setTimeout(() => {
       // if 判断确保状态只能改变一次
-    if (this._state === PENDING) {
-      this._state = REJECTED;
-      this._valueOrReason = reason;
-      this._rejectedCallbacks.forEach(func => func(reason));
-    }
+      if (this._state === PENDING) {
+        this._state = REJECTED;
+        this._reason = reason;
+        this._rejectedCallbacks.forEach(func => func(reason));
+      }
     }, 0);
   }
 
   /**
    * 将用户的处理逻辑 callbacks 推入队列，在 promise 状态改变时统一调用
+   *
+   *  如果当前状态处于 Pending 则：
+   *    如果 thennable 执行完毕，则直接包一层 promise 返回
+   *  否则，等上一个 thennable 执行完毕后，拿到结果再包一层 promise 返回
    */
-  public then(onRes?: VoidFunc, onRej?: VoidFunc) {  
-    onRes = typeof onRes === 'function' ? onRes : r => r;
-    onRej = typeof onRej === 'function' ? onRej : r => r;
-      switch (this._state) {
-        case PENDING:
-          this._resolveCallbacks.push(onRes);
-          this._rejectedCallbacks.push(onRej);
-          break;
-        case FULFILLED:
-          onRes(this._valueOrReason);
-          break;
-        case REJECTED:
-          onRej(this._valueOrReason);
-          break;
+  public then(onRes: VoidFunc = voidFunction, onRej: VoidFunc = voidFunction): MyPromise {
+    return new MyPromise((res, rej) => {
+      if (this._state === PENDING) {
+        try {
+          if (onRes instanceof MyPromise) {
+            onRes.then(res);
+          } else {
+            res(onRes);
+          }
+
+          if (onRej instanceof MyPromise) {
+            onRej.then(rej);
+          } else {
+            rej(onRej);
+          }
+        } catch (e) {
+          rej(e);
+        }
       }
-      // TODO: .then chain invoke
+      else if (this._state === FULFILLED) {
+        try {
+          res(this._state);
+        } catch (err) {
+          rej(err);
+        }
+      }
+      else if (this._state === REJECTED) {
+        try {
+          rej(this._state);
+        } catch (err) {
+          rej(err);
+        }
+      }
+    });
   }
+
+  public catch(onRej: VoidFunc = voidFunction) {
+    return this.then(voidFunction, onRej);
+  }
+
 }
-
-// test-case
-
-
-const m = new MyPromise((res, rej) => {
-  setTimeout(() => {
-    const n = Math.random();
-    if (n > 0.5) {
-      res(n + ' > 0.5');
-    } else {
-      rej(n + ' < 0.5');
-    }
-  }, 4000);
-});
-
-
-m.then(a => {console.log(`resolved: `, a)}, err => {console.log(`rejected:`, err)});
-
-
-
-const m2 = new MyPromise((res, rej) => {
-  // res(1);
-  rej(`error`)
-});
-
-m2.then(b => { console.log(b)}, err => { console.log(err) });

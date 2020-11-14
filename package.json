@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "npx tsc && node my-promise.js"
+    "test": "npx tsc && promises-aplus-tests my-promise.js"
   },
   "repository": {
     "type": "git",
@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/ZQ-jhon/typescript-promise/issues"
   },
-  "homepage": "https://github.com/ZQ-jhon/typescript-promise#readme"
+  "homepage": "https://github.com/ZQ-jhon/typescript-promise#readme",
+  "dependencies": {
+    "typescript": "^4.0.5"
+  }
 }
