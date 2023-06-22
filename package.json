@@ -17,6 +17,6 @@
   },
   "homepage": "https://github.com/ZQ-jhon/typescript-promise#readme",
   "dependencies": {
-    "typescript": "^4.0.5"
+    "typescript": "^5.0.0"
   }
 }
